@@ -58,12 +58,67 @@ namespace MetadataProcessor
             if (dateTaken.HasValue)
             {
                 if (UpdateImageMetadata(imagePath, dateTaken.Value))
+                {
+                    // Wenn die .MP-Datei existiert, auch deren Metadaten aktualisieren
+                    string mpFilePath = GetMPFilePath(imagePath);
+                    if (!string.IsNullOrEmpty(mpFilePath) && File.Exists(mpFilePath))
+                    {
+                        if (UpdateMPMetadata(mpFilePath, dateTaken.Value))
+                            Console.WriteLine("Metadata updated for MP file: " + mpFilePath);
+                    }
+
+                    // JSON-Datei löschen, nachdem die Metadaten erfolgreich aktualisiert wurden
                     File.Delete(jsonFile);
+                }
             }
             else
             {
                 Console.WriteLine("No date found in JSON-File for " + imagePath);
             }
+        }
+
+        /// <summary>
+        /// Sucht nach einer .MP-Datei, die zur Bilddatei gehört. 
+        /// Wenn die Bilddatei z.B. "image-example.MP.jpg" ist, wird die "image-example.MP" gesucht.
+        /// </summary>
+        private static string GetMPFilePath(string imagePath)
+        {
+            string mediaFileName = Path.GetFileNameWithoutExtension(imagePath);
+            string mediaDir = Path.GetDirectoryName(imagePath);
+            string mpFilePath = Path.Combine(mediaDir, mediaFileName);
+
+            // Prüfen, ob die MP-Datei existiert
+            if (File.Exists(mpFilePath))
+                return mpFilePath;
+            // Prüfen, ob die MP4-Datei existiert
+            mpFilePath = Path.ChangeExtension(mpFilePath, ".MP4");
+            if (File.Exists(mpFilePath))
+                return mpFilePath;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Aktualisiert die Metadaten einer .MP-Datei (vermutlich eine Textdatei oder ein anderes Format).
+        /// Hier wird angenommen, dass es sich um eine einfache Textdatei handelt.
+        /// </summary>
+        private static bool UpdateMPMetadata(string mpFilePath, DateTime dateTaken)
+        {
+            bool success = true;
+            try
+            {
+                // Da keine EXIF-Daten vorhanden sind, gehen wir davon aus, dass die .MP-Datei einfach die Dateiattribute benötigt.
+                // Setze die Dateisystem-Metadaten
+                File.SetCreationTime(mpFilePath, dateTaken);
+                File.SetLastWriteTime(mpFilePath, dateTaken);
+                Console.WriteLine("File-Attributes updated for MP file: " + mpFilePath);
+            }
+            catch (Exception ex)
+            {
+                success = false;
+                Console.WriteLine("Error updating metadata for MP file " + mpFilePath + ": " + ex.Message);
+            }
+            return success;
         }
 
         /// <summary>
@@ -98,12 +153,26 @@ namespace MetadataProcessor
         /// </summary>
         private static string GetJsonFilePath(string mediaPath)
         {
-            // Versuch 6: Finde eine Datei nach dem Pattern "mediafile.pdf.*.json"
+            // Versuch 1: Finde eine Datei nach dem Pattern "mediafile.pdf.*.json"
             string mediaFileName = Path.GetFileNameWithoutExtension(mediaPath);
             string mediaDir = Path.GetDirectoryName(mediaPath);
             string[] jsonFiles = Directory.GetFiles(mediaDir, mediaFileName + ".*.json");
             if (jsonFiles.Length > 0)
                 return jsonFiles[0];
+
+            // Versuch 2: Finde Dateien die "_COV" vor der Dateiendung haben und suche nach "_CO.json"
+            string mediaFileNameWithoutExt = Path.GetFileNameWithoutExtension(mediaFileName);
+            string mediaExt = Path.GetExtension(mediaFileName);
+            string jsonFileName = mediaFileNameWithoutExt.Replace("_COV", "_CO") + ".json";
+            string jsonFilePath = Path.Combine(mediaDir, jsonFileName);
+            if (File.Exists(jsonFilePath))
+                return jsonFilePath;
+
+            // Versuch 3: Finde Dateien die "_CO" vor der Dateiendung haben und suche nach "_C.json"
+            jsonFileName = mediaFileNameWithoutExt.Replace("_CO", "_C") + ".json";
+            jsonFilePath = Path.Combine(mediaDir, jsonFileName);
+            if (File.Exists(jsonFilePath))
+                return jsonFilePath;
 
             return "";
         }
