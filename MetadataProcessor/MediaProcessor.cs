@@ -7,7 +7,7 @@ namespace MetadataProcessor
     public static class MediaProcessor
     {
         // Unterstützte Dateiendungen
-        private static readonly string[] ImageExtensions = { ".png", ".jpg", ".jpeg" };
+        private static readonly string[] ImageExtensions = { ".arw", ".gif", ".png", ".jpg", ".jpeg" };
         private static readonly string[] VideoExtensions = { ".mp4", ".mov", ".avi", ".mkv" };
 
         /// <summary>
